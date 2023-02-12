@@ -1,0 +1,10 @@
+gaia/
+bkb/
+.DS_Store
+venv/
+.vscode/
+.scrapy/
+dev/
+__pycache__/
+.env
+dump/
