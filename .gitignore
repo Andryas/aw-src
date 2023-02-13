@@ -8,3 +8,4 @@ dev/
 __pycache__/
 .env
 dump/
+credentials.json

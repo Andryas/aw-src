@@ -8,13 +8,9 @@ from src.utils.lubridate import now
 class TestSpider(scrapy.Spider):
     name = 'test'
 
-    headers = {
-        "x-domain": "www.centris.ca",
-    }
-
     custom_settings = {
         'ITEM_PIPELINES': {
-            'src.spiders.test.pipelines.MongoPipeline': 300
+            'src.spiders.test.pipeline.standardPipeline': 300
         }
     }
 

@@ -8,6 +8,9 @@ load_dotenv()
 #                                 CREDENTIALS                                  #
 # ============================================================================ #
 API = getenv("API_PROXY")
+MONGO_DATABASE=getenv("MONGO_DATABASE")
+MONGO_URI=getenv("MONGO_URI")
+RABBITMQ_URL=getenv("RABBITMQ_URL")
 
 # SPLASH_URL = 'http://localhost:8050'
 

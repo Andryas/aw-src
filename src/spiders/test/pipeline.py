@@ -2,7 +2,7 @@ import pymongo
 
 from src.utils.lubridate import now
 
-class MongoPipeline:
+class standardPipeline:
 
     def __init__(self, mongo_uri, mongo_db):
         self.mongo_uri = mongo_uri
