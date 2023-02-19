@@ -28,4 +28,5 @@ def str_detect(x, pattern, negate = False):
     return x
 
 def str_strip_white_space(x):
-    return " ".join(x.split())
+    x = " ".join(x.split())
+    return x.strip()

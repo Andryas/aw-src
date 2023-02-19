@@ -15,7 +15,8 @@ from urllib.parse import unquote
 
 from datetime import datetime
 
-from src.utils.stringpy import str_replace
+from src.utils.mongo import mongo
+from src.utils.stringpy import str_replace, str_strip_white_space
 from src.utils.random_agent import random_agent
 from src.utils.lubridate import now
 from src.settings import *
@@ -96,17 +97,51 @@ class CentrisCaSpider(scrapy.Spider):
             with rabbitpy.Connection(RABBITMQ_URL) as conn:
                 with conn.channel() as channel:
                     queue = rabbitpy.Queue(channel, "spider_" + self.name)
-                    queue.durable = True
+                    queue.durable = True    
                     while len(queue) > 0:
                         message = queue.get()
                         data=message.body.decode()
                         url=json.loads(data)
-                        yield scrapy.Request(
-                            url=url, 
-                            callback=self.parse_detail, 
-                            headers=self.headers
-                        )
                         message.ack()
+                        id = int(findall("(?<=/)[0-9]+(?=\\?)", unquote(url))[0])
+                        if id:
+                            check = bool(mongo().find("centris_ca", filter={'id': id})) == False
+                        else:
+                            check = True
+                        if check:
+                            yield scrapy.Request(
+                                url=url, 
+                                callback=self.parse_detail, 
+                                headers=self.headers
+                            )
+                        else:
+                            mongo().update_one(
+                                "centris_ca",
+                                filter= {"id": id},
+                                doc = {"$push": {"crawled_at": self.date}}
+                            )
+            
+            # links=["https://www.centris.ca/en/houses~for-sale~levis-les-chutes-de-la-chaudiere-est/24156597?view=Summary&uc=0",
+            #      "https://www.centris.ca/en/houses~for-sale~levis-les-chutes-de-la-chaudiere-est/24156597?view=Summary&uc=0"]
+            
+            # for url in links:
+            #     id = int(findall("(?<=/)[0-9]+(?=\\?)", unquote(url))[0])
+            #     if id:
+            #         check = bool(mongo().find("centris_ca", filter={'id': id})) == False
+            #     else:
+            #         check = True
+            #     if check:
+            #         yield scrapy.Request(
+            #             url=url, 
+            #             callback=self.parse_detail, 
+            #             headers=self.headers
+            #         )
+            #     else:
+            #         mongo().update_one(
+            #             "centris_ca",
+            #             filter= {"id": id},
+            #             doc = {"$push": {"crawled_at": self.date}}
+            #         )
             
     def parse_detail(self, response):
         loader = ItemLoader(Items(), response=response)
@@ -120,21 +155,23 @@ class CentrisCaSpider(scrapy.Spider):
         loader.add_value("bathroom", response.xpath("//div[@class='col-lg-12 description']//div[@class='row teaser']/div[@class='col-lg-3 col-sm-6 sdb']/text()").extract_first())
         loader.add_value("description", response.xpath("//div[@itemprop='description']/text()").extract_first())
 
-        features_names = response.xpath("//div[@class='col-lg-12 description']//div[@class='col-lg-3 col-sm-6 carac-container']/div[@class='carac-title']/text()").extract()
-        features_values = response.xpath("//div[@class='col-lg-12 description']//div[@class='col-lg-3 col-sm-6 carac-container']/div[@class='carac-value']/span/text()").extract()
-        features = dict(zip(features_names, features_values))
-        features['Walkscore'] = response.xpath("//div[@class='col-lg-12 description']//div[@class='walkscore']//span//text()").extract_first()
-        loader.add_value("features", features)
+        feature_names = response.xpath("//div[@class='col-lg-12 description']//div[@class='col-lg-3 col-sm-6 carac-container']/div[@class='carac-title']/text()").extract()
+        feature_names = [str_strip_white_space(str(x)) for x in feature_names]
+        feature_values = response.xpath("//div[@class='col-lg-12 description']//div[@class='col-lg-3 col-sm-6 carac-container']/div[@class='carac-value']/span/text()").extract()
+        feature_values = [str_strip_white_space(str(x)) for x in feature_values]
+        feature = dict(zip(feature_names, feature_values))
+        feature['Walkscore'] = response.xpath("//div[@class='col-lg-12 description']//div[@class='walkscore']//span//text()").extract_first()
+        loader.add_value("feature", feature)
 
-        agents_url = response.xpath("//div[@class='property-summary-item__brokers-content']/div[@class='position-relative']/a/@href").extract()
-        agents_name = response.xpath("//div[@class='property-summary-item__brokers-content']/div[@class='position-relative']//h1[@itemprop='name']/text()").extract()
-        agents_job = response.xpath("//div[@class='property-summary-item__brokers-content']/div[@class='position-relative']//div[@itemprop='jobTitle']/text()").extract()
+        agent_url = response.xpath("//div[@class='property-summary-item__brokers-content']/div[@class='position-relative']/a/@href").extract()
+        agent_name = response.xpath("//div[@class='property-summary-item__brokers-content']/div[@class='position-relative']//h1[@itemprop='name']/text()").extract()
+        agent_job = response.xpath("//div[@class='property-summary-item__brokers-content']/div[@class='position-relative']//div[@itemprop='jobTitle']/text()").extract()
         agent = []
-        for e in range(0, len(agents_job)):
+        for e in range(0, len(agent_job)):
             agent.append({
-                'url': agents_url[e],
-                'agents_name': agents_name[e],
-                'agents_job': agents_job[e]
+                'url': agent_url[e],
+                'agent_name': agent_name[e],
+                'agent_job': agent_job[e]
             })
         loader.add_value("agent", agent)
 
@@ -144,8 +181,8 @@ class CentrisCaSpider(scrapy.Spider):
         location = {
             'address': address,
             'geocode': {
-                'lat': latitude,
-                'lng': longitude
+                'lat': float(latitude),
+                'lng': float(longitude)
             }
         }
         loader.add_value("location", location)
@@ -160,13 +197,13 @@ class CentrisCaSpider(scrapy.Spider):
         req = requests.get(url_scores, headers={'origin': "https://www.centris.ca", 'referer': "https://www.centris.ca/"})
         data = json.loads(req.text)
         if data['data']['attributes']:
-            attributes = data["data"]["attributes"]
-            attributes["url"] = url_scores
+            attribute = data["data"]["attributes"]
+            attribute["url"] = url_scores
         else:
-            attributes = {
+            attribute = {
                 "url": url_scores
             }
-        loader.add_value("attributes", attributes)
+        loader.add_value("attribute", attribute)
         
         self.total_collect = self.total_collect + 1
         yield loader.load_item()
