@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import json
 import requests
 import copy
@@ -7,7 +6,6 @@ import rabbitpy
 
 from scrapy.loader import ItemLoader
 from src.spiders.centris_ca.item import Items
-
 
 from re import findall
 from lxml import etree
@@ -71,7 +69,7 @@ class CentrisCaSpider(scrapy.Spider):
                     message.publish('', 'spider_{0}'.format(self.name))
          
                 j = 0
-                while True:
+                while start_position < 5000:
                     response = requests.post(url_post, headers=self.headers, json={'startPosition': start_position}, cookies=req.cookies)
                     if j == 5:
                         break
@@ -83,6 +81,8 @@ class CentrisCaSpider(scrapy.Spider):
                             break
                         else:
                             start_position = start_position + 20 
+                            if start_position >= 5000:
+                                break
                             j=0
                             data = json.loads(response.text)
                             links = self.get_links(data['d']['Result']['html'])
