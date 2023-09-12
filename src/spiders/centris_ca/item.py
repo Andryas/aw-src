@@ -16,4 +16,5 @@ class Items(scrapy.Item):
     feature=scrapy.Field(output_processor=TakeFirst())
     location=scrapy.Field(output_processor=TakeFirst())
     attribute=scrapy.Field(output_processor=TakeFirst())
+    created_at=scrapy.Field(output_processor=TakeFirst())
     agent=scrapy.Field()

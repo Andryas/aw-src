@@ -1,16 +1,14 @@
-# -*- coding: utf-8 -*-
 from dotenv import load_dotenv
 from os import getenv
 
 load_dotenv()
 
-# ============================================================================ #
-#                                 CREDENTIALS                                  #
-# ============================================================================ #
-API = getenv("API_PROXY")
-MONGO_DATABASE=getenv("MONGO_DATABASE")
-MONGO_URI=getenv("MONGO_URI")
-RABBITMQ_URL=getenv("RABBITMQ_URL")
+BUCKET = getenv("BUCKET")
+
+# API = getenv("API_PROXY")
+# MONGO_DATABASE=getenv("MONGO_DATABASE")
+# MONGO_URI=getenv("MONGO_URI")
+# RABBITMQ_URL=getenv("RABBITMQ_URL")
 
 # SPLASH_URL = 'http://localhost:8050'
 
@@ -47,7 +45,7 @@ NEWSPIDER_MODULE = 'src.spiders'
 ROBOTSTXT_OBEY = False
 
 # Configure maximum concurrent requests performed by Scrapy (default: 16)
-CONCURRENT_REQUESTS = 32
+CONCURRENT_REQUESTS = 16
 
 # Configure a delay for requests for the same website (default: 0)
 # See https://doc.scrapy.org/en/latest/topics/settings.html#download-delay
@@ -75,12 +73,24 @@ DEFAULT_REQUEST_HEADERS = {
 #SPIDER_MIDDLEWARES = {
 #    'scr.middlewares.ScrSpiderMiddleware': 543,
 #}
-
+DOWNLOAD_HANDLERS = {
+    'http': 'scrapy.core.downloader.handlers.http.HTTPDownloadHandler',
+    'https': 'scrapy.core.downloader.handlers.http.HTTPDownloadHandler',
+    'ftp': None,
+    'file': None,
+    's3': None
+}
 # Enable or disable downloader middlewares
 # See https://doc.scrapy.org/en/latest/topics/downloader-middleware.html
-#DOWNLOADER_MIDDLEWARES = {
-#    'scr.middlewares.ScrDownloaderMiddleware': 543,
-#}
+DOWNLOADER_MIDDLEWARES = {
+  'scrapy_splash.SplashCookiesMiddleware': 720,
+  'scrapy_splash.SplashMiddleware': 730,
+  'scrapy.downloadermiddlewares.httpcompression.HttpCompressionMiddleware': 810,
+  
+  # USER-AGENT
+  'scrapy.downloadermiddlewares.useragent.UserAgentMiddleware': None,
+  'scrapy_user_agents.middlewares.RandomUserAgentMiddleware': 400,
+}
 
 # Enable or disable extensions
 # See https://doc.scrapy.org/en/latest/topics/extensions.html
@@ -90,9 +100,9 @@ DEFAULT_REQUEST_HEADERS = {
 
 # Configure item pipelines
 # See https://doc.scrapy.org/en/latest/topics/item-pipeline.html
-# ITEM_PIPELINES = {
-#     'src.pipelines.Pipeline': 300,
-# }
+ITEM_PIPELINES = {
+    'src.pipeline.JsonWriterPipeline': 300,
+}
 
 # Enable and configure the AutoThrottle extension (disabled by default)
 # See https://doc.scrapy.org/en/latest/topics/autothrottle.html
@@ -114,3 +124,8 @@ HTTPCACHE_EXPIRATION_SECS = 0
 HTTPCACHE_DIR = 'httpcache'
 HTTPCACHE_IGNORE_HTTP_CODES = []
 HTTPCACHE_STORAGE = 'scrapy.extensions.httpcache.FilesystemCacheStorage'
+
+# FEEDS = {
+#     'data.json': {'format': 'json', 'overwrite': True}
+#     # 'data.jsonl': {'format': 'jsonlines', 'overwrite': True}
+# }

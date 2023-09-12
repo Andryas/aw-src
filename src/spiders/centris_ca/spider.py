@@ -2,165 +2,206 @@ import json
 import requests
 import copy
 import scrapy
-import rabbitpy
+import math
 
 from scrapy.loader import ItemLoader
 from src.spiders.centris_ca.item import Items
 
 from re import findall
-from lxml import etree
 from urllib.parse import unquote
+from lxml import etree
 
-from datetime import datetime
-
-from src.utils.mongo import mongo
-from src.utils.stringpy import str_replace, str_strip_white_space
-from src.utils.random_agent import random_agent
+from src.utils.stringpy import str_strip_white_space, str_replace
 from src.utils.lubridate import now
 from src.settings import *
 
 class CentrisCaSpider(scrapy.Spider):
     name = 'centris_ca'
 
+    base_url = "https://www.centris.ca"
+
+    update_query_sale = {
+        "query": {
+            "UseGeographyShapes": 0,
+            "Filters": [],
+            "FieldsValues": [
+            {
+                "fieldId": "Category",
+                "value": "Residential",
+                "fieldConditionId": "",
+                "valueConditionId": ""
+            },
+            {
+                "fieldId": "SellingType",
+                "value": "Sale",
+                "fieldConditionId": "",
+                "valueConditionId": ""
+            },
+            {
+                "fieldId": "LandArea",
+                "value": "SquareFeet",
+                "fieldConditionId": "IsLandArea",
+                "valueConditionId": ""
+            },
+            {
+                "fieldId": "SalePrice",
+                "value": 20000,
+                "fieldConditionId": "ForSale",
+                "valueConditionId": ""
+            },
+            {
+                "fieldId": "SalePrice",
+                "value": 50000,
+                "fieldConditionId": "ForSale",
+                "valueConditionId": ""
+            }
+            ]
+        },
+       "isHomePage": "false"
+    }
+
+    update_query_rent = {
+        "query": {
+            "UseGeographyShapes": 0,
+            "Filters": [],
+            "FieldsValues": [
+                {
+                    "fieldId": "Category",
+                    "value": "Residential",
+                    "fieldConditionId": "",
+                    "valueConditionId": ""
+                },
+                {
+                    "fieldId": "SellingType",
+                    "value": "Rent",
+                    "fieldConditionId": "",
+                    "valueConditionId": ""
+                },
+                {
+                    "fieldId": "LandArea",
+                    "value": "SquareFeet",
+                    "fieldConditionId": "IsLandArea",
+                    "valueConditionId": ""
+                },
+                {
+                    "fieldId": "RentPrice",
+                    "value": 850,
+                    "fieldConditionId": "ForRent",
+                    "valueConditionId": ""
+                },
+                {
+                    "fieldId": "RentPrice",
+                    "value": 999999999999,
+                    "fieldConditionId": "ForRent",
+                    "valueConditionId": ""
+                }
+            ]
+        },
+        "isHomePage": "false"
+    }
+
     headers = {
-        "origin": "www.centris.ca",
-        "user-agent": random_agent()
+        "Content-Type": "application/json;charset=UTF-8", 
+        "Accept":"application/json, text/plain, */*"
     }
-
-    custom_settings = {
-        'ITEM_PIPELINES': {
-            'src.spiders.centris_ca.pipeline.Pipeline': 300
-        }
-    }
-
-    def __init__(self, date = str(now()), mode = "generator"):
-        self.date = datetime.strptime(date, "%Y-%m-%d %H:%M:%S")
-        self.mode=mode
-
-        # guarantees that the queue will exist
-        self.connection = rabbitpy.Connection(RABBITMQ_URL)
-        self.connection = self.connection.channel()
-
-        self.queue = rabbitpy.Queue(self.connection, 'spider_{0}'.format(self.name))
-        self.queue.durable = True
-        self.queue.declare()
+    
+    created_at = now(False)
 
     def start_requests(self):
-        url_get = "https://www.centris.ca/en/properties~for-{}?view=Thumbnail"
-        url_post = "https://www.centris.ca/Property/GetInscriptions?"
+        yield scrapy.Request(
+            url= self.base_url + "/en/properties~for-{}?view=Thumbnail".format("rent"), 
+            callback=self.pagination_price_range
+        )
+        
+    def pagination_price_range(self, response):
+        if "sale" in response.url:
+            salesRange = response.xpath("//price[@data-field-id='SalePrice']/@data-field-value-id").getall()
+            salesRange = [int(item) for item in salesRange]
+            salesRange = sorted(set(list(salesRange)))
 
-        if self.mode=="generator":
-            self.total_count = 0
+            for i in range(0, len(salesRange)-1):
+                body = copy.deepcopy(self.update_query_sale)
+                body["query"]["FieldsValues"][3]["value"]=salesRange[i]
+                body["query"]["FieldsValues"][4]["value"]=salesRange[i+1]
 
-            for type in ["rent", "sale"]:
-                req = requests.get(url_get.format(type), headers=self.headers)
-                self.headers["referer"] = url_get.format(type)
-                self.headers["accept-language"]="en-US,en;q=0.9"
+                yield scrapy.Request(
+                    url = "https://www.centris.ca/property/UpdateQuery",
+                    method="POST", 
+                    headers=self.headers,
+                    body=json.dumps(body),
+                    callback=self.pagination,
+                    dont_filter=True,
+                    meta={"body": body, "min": salesRange[i], "max": salesRange[i+1]}
+                )
+        elif "rent" in response.url:
+            rentRange = response.xpath("//price[@data-field-id='RentPrice']/@data-field-value-id").getall()
+            rentRange = [int(item) for item in rentRange]
+            rentRange = sorted(set(list(rentRange)))
 
-                start_position=0
-                response = requests.post(url_post, headers=self.headers, cookies=req.cookies, json={'startPosition': start_position})
-                data = json.loads(response.text)
-                total_count = data['d']['Result']['count']
-                self.total_count = self.total_count + total_count
+            for i in range(0, len(rentRange)-1):
+                body = copy.deepcopy(self.update_query_rent)
+                body["query"]["FieldsValues"][3]["value"]=rentRange[i]
+                body["query"]["FieldsValues"][4]["value"]=rentRange[i+1]
 
-                links = self.get_links(data['d']['Result']['html'])
-                for link in links:
-                    message = rabbitpy.Message(self.connection, json.dumps(str_replace(link, "/fr/", "/en/")))
-                    message.publish('', 'spider_{0}'.format(self.name))
-         
-                j = 0
-                while start_position < 5000:
-                    response = requests.post(url_post, headers=self.headers, json={'startPosition': start_position}, cookies=req.cookies)
-                    if j == 5:
-                        break
-                    elif response.status_code != 200:
-                        req = requests.get(url_get.format(type), headers=self.headers)
-                        j=+1
-                    else:
-                        if start_position >= total_count:
-                            break
-                        else:
-                            start_position = start_position + 20 
-                            if start_position >= 5000:
-                                break
-                            j=0
-                            data = json.loads(response.text)
-                            links = self.get_links(data['d']['Result']['html'])
-                            for link in links:
-                                message = rabbitpy.Message(self.connection, json.dumps(str_replace(link, "/fr/", "/en/")))
-                                message.publish('', 'spider_{0}'.format(self.name))
-                            print(start_position)
-            self.total_queue = len(self.queue)
+                yield scrapy.Request(
+                    url = "https://www.centris.ca/property/UpdateQuery",
+                    method="POST", 
+                    headers=self.headers,
+                    body=json.dumps(body),
+                    callback=self.pagination,
+                    dont_filter=True,
+                    meta={"body": body, "min": rentRange[i], "max": rentRange[i+1]}
+                )
+    
+    def pagination(self, response):
+        body = response.meta["body"]["query"]
+        body["FieldsValues"][3]["value"]=response.meta["min"]
+        body["FieldsValues"][4]["value"]=response.meta["max"]
+        
+        req = requests.post(
+            "https://www.centris.ca/property/GetPropertyCount",
+            headers={
+                "User-Agent": "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Mobile Safari/537.36"
+            },
+            json=body
+        )
+        data = req.json()
+        n = data["d"]["Result"]["listingCount"]
+        n = math.ceil(n/20)
 
-        elif self.mode=="receiver":
-            self.total_collect = 0
-            with rabbitpy.Connection(RABBITMQ_URL) as conn:
-                with conn.channel() as channel:
-                    queue = rabbitpy.Queue(channel, "spider_" + self.name)
-                    queue.durable = True    
-                    while len(queue) > 0:
-                        message = queue.get()
-                        data=message.body.decode()
-                        url=json.loads(data)
-                        message.ack()
-                        id = int(findall("(?<=/)[0-9]+(?=\\?)", unquote(url))[0])
-                        if id:
-                            check = bool(mongo().find("centris_ca", filter={'id': id})) == False
-                        else:
-                            check = True
-                        if check:
-                            yield scrapy.Request(
-                                url=url, 
-                                callback=self.parse_detail, 
-                                headers=self.headers
-                            )
-                        else:
-                            mongo().update_one(
-                                "centris_ca",
-                                filter= {"id": id},
-                                doc = {"$push": {"crawled_at": self.date}}
-                            )
-            
-            # links=["https://www.centris.ca/en/houses~for-sale~levis-les-chutes-de-la-chaudiere-est/24156597?view=Summary&uc=0",
-            #      "https://www.centris.ca/en/houses~for-sale~levis-les-chutes-de-la-chaudiere-est/24156597?view=Summary&uc=0"]
-            
-            # for url in links:
-            #     id = int(findall("(?<=/)[0-9]+(?=\\?)", unquote(url))[0])
-            #     if id:
-            #         check = bool(mongo().find("centris_ca", filter={'id': id})) == False
-            #     else:
-            #         check = True
-            #     if check:
-            #         yield scrapy.Request(
-            #             url=url, 
-            #             callback=self.parse_detail, 
-            #             headers=self.headers
-            #         )
-            #     else:
-            #         mongo().update_one(
-            #             "centris_ca",
-            #             filter= {"id": id},
-            #             doc = {"$push": {"crawled_at": self.date}}
-            #         )
-            
+        for i in range(0, n+1):
+            req = requests.post(
+                "https://www.centris.ca/Property/GetInscriptions?",
+                headers={
+                    "User-Agent": "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Mobile Safari/537.36"
+                },
+                json={"startPosition": i * 20}
+            )
+            data = req.json()
+            links = self.get_links(data['d']['Result']['html'])
+            for link in links:
+                yield scrapy.Request(url = str_replace(link, "/fr/", "/en/"), callback=self.parse_detail)
+
     def parse_detail(self, response):
         loader = ItemLoader(Items(), response=response)
 
+        loader.add_value("created_at", self.created_at)
         loader.add_value("id", findall("(?<=/)[0-9]+(?=\\?)", unquote(response.url))[0])
         loader.add_value("url", unquote(response.url))
         loader.add_value("title", response.xpath("//span[@data-id='PageTitle']/text()").extract_first())
         loader.add_value("price", response.xpath("//div[@itemprop='offers']/meta[@itemprop='price']/@content").extract_first())
+        loader.add_value("description", response.xpath("//div[@itemprop='description']/text()").extract_first())
+        
         loader.add_value("room", response.xpath("//div[@class='col-lg-12 description']//div[@class='row teaser']/div[@class='col-lg-3 col-sm-6 piece']/text()").extract_first())
         loader.add_value("bedroom", response.xpath("//div[@class='col-lg-12 description']//div[@class='row teaser']/div[@class='col-lg-3 col-sm-6 cac']/text()").extract_first())
         loader.add_value("bathroom", response.xpath("//div[@class='col-lg-12 description']//div[@class='row teaser']/div[@class='col-lg-3 col-sm-6 sdb']/text()").extract_first())
-        loader.add_value("description", response.xpath("//div[@itemprop='description']/text()").extract_first())
 
         feature_names = response.xpath("//div[@class='col-lg-12 description']//div[@class='col-lg-3 col-sm-6 carac-container']/div[@class='carac-title']/text()").extract()
         feature_names = [str_strip_white_space(str(x)) for x in feature_names]
         feature_values = response.xpath("//div[@class='col-lg-12 description']//div[@class='col-lg-3 col-sm-6 carac-container']/div[@class='carac-value']/span/text()").extract()
         feature_values = [str_strip_white_space(str(x)) for x in feature_values]
         feature = dict(zip(feature_names, feature_values))
-        feature['Walkscore'] = response.xpath("//div[@class='col-lg-12 description']//div[@class='walkscore']//span//text()").extract_first()
+        feature['walkscore'] = response.xpath("//div[@class='col-lg-12 description']//div[@class='walkscore']//span//text()").extract_first()
         loader.add_value("feature", feature)
 
         agent_url = response.xpath("//div[@class='property-summary-item__brokers-content']/div[@class='position-relative']/a/@href").extract()
@@ -205,7 +246,6 @@ class CentrisCaSpider(scrapy.Spider):
             }
         loader.add_value("attribute", attribute)
         
-        self.total_collect = self.total_collect + 1
         yield loader.load_item()
 
     def get_links(self, dResultHtml):

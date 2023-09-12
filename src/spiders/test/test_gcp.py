@@ -1,21 +1,11 @@
 # -*- coding: utf-8 -*-
-import json
 import scrapy
 
 from src.settings import *
 from src.utils.lubridate import now
 
-class TestSpider(scrapy.Spider):
-    name = 'test'
-
-    custom_settings = {
-        'ITEM_PIPELINES': {
-            'src.spiders.test.pipeline.standardPipeline': 300
-        }
-    }
-
-    def __init__(self, date=now()):
-        self.date=date
+class TestGCPSpider(scrapy.Spider):
+    name = 'test_gcp'
 
     def start_requests(self):
         urls = [
@@ -27,12 +17,10 @@ class TestSpider(scrapy.Spider):
     def parse(self, response):
         for quote in response.css('div.quote'):
             yield {
-                'scraping': {
-                    'date_scraping': self.date
-                },
+                'created_at': now(False),
                 'text': quote.css('span.text::text').get(),
                 'author': quote.css('small.author::text').get(),
-                'tags': quote.css('div.tags a.tag::text').getall(),
+                'tags': quote.css('div.tags a.tag::text').getall()
             }
 
        

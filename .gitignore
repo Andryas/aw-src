@@ -10,3 +10,7 @@ __pycache__/
 dump/
 credentials.json
 R/
+pipeline/
+achieve/
+waurzenczak.json
+andryas.json
