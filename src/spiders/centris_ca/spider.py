@@ -3,7 +3,6 @@ import requests
 import copy
 import scrapy
 import math
-import sqlite3
 
 from scrapy.loader import ItemLoader
 from src.spiders.centris_ca.item import Items
@@ -14,8 +13,8 @@ from lxml import etree
 
 from src.utils.stringpy import str_strip_white_space, str_replace
 from src.utils.lubridate import now
+from src.utils.log_error import log_error
 from src.settings import *
-from src.utils import gcp
 
 class CentrisCaSpider(scrapy.Spider):
     name = 'centris_ca'
@@ -161,10 +160,15 @@ class CentrisCaSpider(scrapy.Spider):
                     json={"startPosition": j * 20},
                     cookies=req.cookies
                 )
-                data = req3.json()
-                links = self.get_links(data['d']['Result']['html'])
-                for link in links:
-                    all_items_urls.append(link)
+                try:
+                    data = req3.json()
+                    links = self.get_links(data['d']['Result']['html'])
+                    for link in links:
+                        all_items_urls.append(link)
+                except Exception as e:
+                        print(f"An unexpected error occurred: {e}")
+                        log_error(e, self.name)
+                    
 
         salesRange = response.xpath("//price[@data-field-id='SalePrice']/@data-field-value-id").getall()
         salesRange = [int(item) for item in salesRange]
@@ -204,10 +208,14 @@ class CentrisCaSpider(scrapy.Spider):
                     json={"startPosition": j * 20},
                     cookies=req.cookies
                 )
-                data = req3.json()
-                links = self.get_links(data['d']['Result']['html'])
-                for link in links:
-                    all_items_urls.append(link)
+                try:
+                    data = req3.json()
+                    links = self.get_links(data['d']['Result']['html'])
+                    for link in links:
+                        all_items_urls.append(link)
+                except Exception as e:
+                        print(f"An unexpected error occurred: {e}")
+                        log_error(e, self.name)
 
         all_items_urls = list(set(all_items_urls))
 
@@ -295,6 +303,9 @@ class CentrisCaSpider(scrapy.Spider):
         html = str(dResultHtml)
         html = html.replace('\n','').replace('\r','')
         html = etree.HTML(html)
-        links = html.xpath("//a[@class='a-more-detail']/@href")
-        links = ["https://www.centris.ca" + link for link in links]
-        return(links)
+        if html is None:
+            return([])
+        else:
+            links = html.xpath("//a[@class='a-more-detail']/@href")
+            links = ["https://www.centris.ca" + link for link in links]
+            return(links)
