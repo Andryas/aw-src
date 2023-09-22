@@ -15,4 +15,4 @@ scrapy crawl $1
 # get the end date and time
 end_datetime=$(date '+%m_%d_%Y_%H_%M_%S')
 echo "${end_datetime} - spider finished successfully"
-root shutdown
+sudo shutdown

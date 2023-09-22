@@ -74,3 +74,47 @@ def list_blobs(bucket_name):
         # print(blob.name)
         names.append(blob.name)
     return names
+
+def download_blob(bucket_name, source_blob_name, destination_file_name):
+    """Downloads a blob from the bucket."""
+    storage_client = storage.Client(getenv("GOOGLE_APPLICATION_CREDENTIALS"))
+    bucket = storage_client.bucket(bucket_name)
+    blob = bucket.blob(source_blob_name)
+    blob.download_to_filename(destination_file_name)
+
+    print(f"Downloaded {source_blob_name} to {destination_file_name}.")
+
+def read_jsonl(bucket_name, blob_name):
+    """Write and read a blob from GCS using file-like IO"""
+    # The ID of your GCS bucket
+    # bucket_name = "your-bucket-name"
+
+    # The ID of your new GCS object
+    # blob_name = "storage-object-name"
+
+    storage_client = storage.Client(getenv("GOOGLE_APPLICATION_CREDENTIALS"))
+    bucket = storage_client.bucket(bucket_name)
+    blob = bucket.blob(blob_name)
+
+    # Mode can be specified as wb/rb for bytes mode.
+    # See: https://docs.python.org/3/library/io.html
+    # with blob.open("w") as f:
+    #     f.write("Hello world")
+    with blob.open('r') as json_file:
+        json_list = list(json_file)
+    json_list = [json.loads(x) for x in json_list]
+    return json_list
+
+def check_file_exists(bucket_name, blob_name):
+    # Initialize a storage client
+    storage_client = storage.Client(getenv("GOOGLE_APPLICATION_CREDENTIALS"))
+
+    # Get the bucket
+    bucket = storage_client.bucket(bucket_name)
+
+    # Get the blob
+    blob = bucket.blob(blob_name)
+
+    # Check if the file exists
+    return blob.exists()
+
