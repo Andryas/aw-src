@@ -3,8 +3,8 @@ from os import getenv
 
 load_dotenv()
 
-BUCKET = getenv("BUCKET")
-GOOGLE_APPLICATION_CREDENTIALS = getenv("GOOGLE_APPLICATION_CREDENTIALS")
+BUCKET=getenv("BUCKET")
+GOOGLE_APPLICATION_CREDENTIALS=getenv("GOOGLE_APPLICATION_CREDENTIALS")
 
 # API = getenv("API_PROXY")
 # MONGO_DATABASE=getenv("MONGO_DATABASE")
@@ -84,15 +84,14 @@ DOWNLOAD_HANDLERS = {
 # Enable or disable downloader middlewares
 # See https://doc.scrapy.org/en/latest/topics/downloader-middleware.html
 DOWNLOADER_MIDDLEWARES = {
-  "src.middlewares.DeltaFetchGCP.DeltaFetchGCP": 50,
+  # USER-AGENT
+  'scrapy_user_agents.middlewares.RandomUserAgentMiddleware': 400,
 
   # 'scrapy_splash.SplashCookiesMiddleware': 720,
   # 'scrapy_splash.SplashMiddleware': 730,
   # 'scrapy.downloadermiddlewares.httpcompression.HttpCompressionMiddleware': 810,
   
-  # USER-AGENT
   # 'scrapy.downloadermiddlewares.useragent.UserAgentMiddleware': None,
-  'scrapy_user_agents.middlewares.RandomUserAgentMiddleware': 400,
 }
 
 # Enable or disable extensions
@@ -104,7 +103,7 @@ DOWNLOADER_MIDDLEWARES = {
 # Configure item pipelines
 # See https://doc.scrapy.org/en/latest/topics/item-pipeline.html
 ITEM_PIPELINES = {
-    'src.pipelines.JsonWriterGCP.JsonWriterGCP': 300,
+    'src.pipelines.PipelineDefault': 300,
 }
 
 # Enable and configure the AutoThrottle extension (disabled by default)

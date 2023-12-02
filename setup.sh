@@ -1,9 +1,12 @@
-apt update && apt upgrade
-# apt -y install python3-venv
-apt -y install python3.9
-apt -y install python3.9-venv
-# apt -y install python3-virtualenv
-# apt -y install python3 python3-pip
-virtualenv -p python3.9 venv
-source venv/bin/activate
-pip install -r requirements.txt
+# Automatically created by: scrapyd-deploy
+
+from setuptools import setup, find_packages
+import os
+
+setup(
+    name='project',
+    version='1.0',
+    packages=find_packages(),
+    entry_points={'scrapy': ['settings = src.settings']},
+)
+

@@ -1,3 +1,8 @@
-rsync -rv --exclude=.gitignore --exclude=.git --exclude=.DS_Store --exclude=.vscode --exclude=venv/ . scraping/ 
-gcloud compute scp --recurse scraping/ scraping:/home/wavrzenczak/scraping --zone us-central1-c
-sudo rm -rf scraping/
+#!/bin/bash
+# rc-update add docker boot
+
+echo; echo "setting the gcp image tag to the newly built one..."
+docker save -o scraping.tar aw/scraping:latest
+
+echo; echo "pushing the image to VM"
+gcloud compute scp scraping.tar scraping:/home/wavrzenczak --zone "us-central1-a" --project "waurzenczak"
