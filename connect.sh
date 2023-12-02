@@ -1,1 +1,0 @@
-gcloud compute ssh --zone "us-central1-c" "scraping" --project "waurzenczak"

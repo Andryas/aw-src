@@ -9,7 +9,7 @@ class TestSpider(scrapy.Spider):
     
     custom_settings = {
         'DOWNLOADER_MIDDLEWARES': {
-            'src.middlewares.DeltaFetch.DeltaFetch': 50
+            'src.middlewares.DeltaFetchGCP.DeltaFetchGCP': 50
         }
     }
 
@@ -48,7 +48,3 @@ class TestSpider(scrapy.Spider):
                     'author': quote.css('small.author::text').get(),
                     'tags': quote.css('div.tags a.tag::text').getall()
                 }
-
-       
-
-       
