@@ -1,3 +1,6 @@
 .vscode/
 venv/
 scraping.tar/
+.DS_Store
+.git/
+.gitignore
