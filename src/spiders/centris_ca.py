@@ -122,6 +122,7 @@ class CentrisCaSpider(scrapy.Spider):
     def start_requests(self):
         yield scrapy.Request(
             url= self.base_url + "/en/properties~for-rent?view=Thumbnail", 
+            headers=self.headers,
             callback=self.pagination_price_range
         )
         

@@ -8,6 +8,9 @@ class TestSpider(scrapy.Spider):
     name = 'test'
     
     custom_settings = {
+         'ITEM_PIPELINES': {
+            'src.pipelines.JsonWriterGCP.JsonWriterGCP': 200
+        },
         'DOWNLOADER_MIDDLEWARES': {
             'src.middlewares.DeltaFetchGCP.DeltaFetchGCP': 50
         }
