@@ -118,7 +118,9 @@ class CentrisCaSpider(scrapy.Spider):
     
     created_at = now(False)
 
-    def start_requests(self):
+    def start_requests(self, delta_days = 30):
+        self.delta_days = delta_days # it goes to the middleware
+
         yield scrapy.Request(
             url= self.base_url + "/en/properties~for-rent?view=Thumbnail", 
             headers=self.headers,
@@ -180,7 +182,6 @@ class CentrisCaSpider(scrapy.Spider):
                         print(f"An unexpected error occurred: {e}")
                         log_error(e, self.name)
                     
-
         salesRange = response.xpath("//price[@data-field-id='SalePrice']/@data-field-value-id").getall()
         salesRange = [int(item) for item in salesRange]
         salesRange = sorted(set(list(salesRange)))
@@ -232,8 +233,9 @@ class CentrisCaSpider(scrapy.Spider):
 
         for link in all_items_urls:
             yield scrapy.Request(
-                url = str_replace(link, "/fr/", "/en/"), 
+                url = str_replace(link, "/fr/", "/en/") + "&uc=1", 
                 callback=self.parse_detail,
+                headers=self.headers,
                 meta={"id": int(findall("(?<=/)[0-9]+(?=\\?)", unquote(link))[0])}
             )
 

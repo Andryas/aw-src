@@ -1,8 +1,10 @@
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 
-def now(as_date=True):
+def now(as_date=True, days=0):
     """ time without miliseconds """
-    x = str(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+    x = datetime.now()
+    x = x - timedelta(days=days)
+    x = str(x.strftime("%Y-%m-%d %H:%M:%S"))
     if as_date == True:
         return datetime.strptime(x, "%Y-%m-%d %H:%M:%S")
     else:
