@@ -138,6 +138,8 @@ class CentrisCaSpider(scrapy.Spider):
         rentRange = [int(item) for item in rentRange]
         rentRange = sorted(set(list(rentRange)))
         # rentRange = [0, 500] # for test purpose only
+        
+        print("\n\n\nColleting links for RENT\n\n\n")
 
         for i in range(0, len(rentRange)-1):
             body = copy.deepcopy(self.update_query_rent)
@@ -163,7 +165,7 @@ class CentrisCaSpider(scrapy.Spider):
             data = req2.json()
             n = data["d"]["Result"]["listingCount"]
             n = math.ceil(n/20)
-
+            
             for j in range(0, n):
                 req3 = requests.post(
                     "https://www.centris.ca/Property/GetInscriptions?",
@@ -185,6 +187,8 @@ class CentrisCaSpider(scrapy.Spider):
         salesRange = response.xpath("//price[@data-field-id='SalePrice']/@data-field-value-id").getall()
         salesRange = [int(item) for item in salesRange]
         salesRange = sorted(set(list(salesRange)))
+
+        print("\n\n\nColleting links for SALES\n\n\n")
 
         for i in range(0, len(salesRange)-1):
             body = copy.deepcopy(self.update_query_sale)
@@ -230,6 +234,8 @@ class CentrisCaSpider(scrapy.Spider):
                         log_error(e, self.name)
 
         all_items_urls = list(set(all_items_urls))
+
+        print("\n\n\nProcessing the collected links\n\n\n")
 
         for link in all_items_urls:
             yield scrapy.Request(

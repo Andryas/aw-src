@@ -48,6 +48,10 @@ class DeltaFetchAWS:
                 spider.logger.info(f"ID {item_id} exists in database. Ignoring request.")
                 return Response(url=request.url, status=200, body=b"Fake")
             else:
-                self.cursor.execute("INSERT INTO scrapy (id, url) VALUES ({}, '{}')".format(item_id, request.url))
-                self.conn.commit()
+                try:
+                    self.cursor.execute("INSERT INTO scrapy (id, url) VALUES ({}, '{}')".format(item_id, request.url))
+                    self.conn.commit()
+                except sqlite3.IntegrityError:
+                    print("The record does not exist in the database or is outdated. Creating a new request for it.")
+                
 
