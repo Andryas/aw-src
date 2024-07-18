@@ -21,4 +21,5 @@ psycopg2-binary==2.9.5
 random_user_agent==1.0.1
 
 jsonlines==3.1.0
-google-cloud-storage
+boto3
+# google-cloud-storage

@@ -1,1 +1,1 @@
-gcloud compute ssh --zone "us-central1-a" "scraping" --project "waurzenczak"
+gcloud compute ssh --zone="us-central1-a" --project="waurzenczak" "scraping" 

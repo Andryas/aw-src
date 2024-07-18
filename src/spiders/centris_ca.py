@@ -21,10 +21,10 @@ class CentrisCaSpider(scrapy.Spider):
     
     custom_settings = {
         'ITEM_PIPELINES': {
-            'src.pipelines.JsonWriterGCP.JsonWriterGCP': 200
+            'src.pipelines.JsonWriterAWS.JsonWriterAWS': 200
         },
         'DOWNLOADER_MIDDLEWARES': {
-            "src.middlewares.DeltaFetchGCP.DeltaFetchGCP": 450
+            "src.middlewares.DeltaFetchAWS.DeltaFetchAWS": 450
         }
     }
 
@@ -137,7 +137,7 @@ class CentrisCaSpider(scrapy.Spider):
         rentRange = response.xpath("//price[@data-field-id='RentPrice']/@data-field-value-id").getall()
         rentRange = [int(item) for item in rentRange]
         rentRange = sorted(set(list(rentRange)))
-        # rentRange = [0, 2000] # for test purpose only
+        # rentRange = [0, 500] # for test purpose only
 
         for i in range(0, len(rentRange)-1):
             body = copy.deepcopy(self.update_query_rent)
