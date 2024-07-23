@@ -2,6 +2,7 @@ from src.settings import *
 from scrapy import signals
 from scrapy.signalmanager import dispatcher
 from src.utils.aws import upload_blob, download_blob, check_file_exists
+from datetime import datetime
 
 import os
 import sqlite3
@@ -41,17 +42,27 @@ class DeltaFetchAWS:
         item_id = request.meta.get('id')
 
         if item_id:
-            self.cursor.execute("SELECT * FROM scrapy WHERE id={} and timestamp >= '{}'".format(item_id, now(False, spider.delta_days)))
-            result = self.cursor.fetchone()
+            result = None
+            if spider.delta_days > 0:
+                self.cursor.execute("SELECT * FROM scrapy WHERE id={}".format(item_id))
+                result = self.cursor.fetchone()
 
             if result:
-                spider.logger.info(f"ID {item_id} exists in database. Ignoring request.")
-                return Response(url=request.url, status=200, body=b"Fake")
+                delta=now(True, 0) - datetime.strptime(result[1], "%Y-%m-%d %H:%M:%S")
+                if delta.days > spider.delta_days:
+                    print("The record is outdated. Creating a new request for it.")
+                    self.cursor.execute("DELETE FROM scrapy WHERE id={}".format(item_id))
+                    self.conn.commit()
+                    self.cursor.execute("INSERT INTO scrapy (id, url) VALUES ({}, '{}')".format(item_id, request.url))
+                    self.conn.commit()
+                else:
+                    spider.logger.info(f"ID {item_id} exists in database. Ignoring request.")
+                    return Response(url=request.url, status=200, body=b"Fake")
             else:
                 try:
                     self.cursor.execute("INSERT INTO scrapy (id, url) VALUES ({}, '{}')".format(item_id, request.url))
                     self.conn.commit()
                 except sqlite3.IntegrityError:
-                    print("The record does not exist in the database or is outdated. Creating a new request for it.")
+                    print("The record does not exist in the database. Creating a new request for it.")
                 
 
