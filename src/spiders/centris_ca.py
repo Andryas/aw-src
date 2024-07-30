@@ -137,7 +137,7 @@ class CentrisCaSpider(scrapy.Spider):
         rentRange = response.xpath("//price[@data-field-id='RentPrice']/@data-field-value-id").getall()
         rentRange = [int(item) for item in rentRange]
         rentRange = sorted(set(list(rentRange)))
-        rentRange = [0, 500] # for test purpose only
+        # rentRange = [0, 500] # for test purpose only
         
         print("\n\n\nColleting links for RENT\n\n\n")
 
@@ -166,7 +166,7 @@ class CentrisCaSpider(scrapy.Spider):
             n = data["d"]["Result"]["listingCount"]
             n = math.ceil(n/20)
             
-            n=1
+            # n=1
             for j in range(0, n):
                 req3 = requests.post(
                     "https://www.centris.ca/Property/GetInscriptions?",
@@ -185,54 +185,54 @@ class CentrisCaSpider(scrapy.Spider):
                         print(f"An unexpected error occurred: {e}")
                         log_error(e, self.name)
                     
-        # salesRange = response.xpath("//price[@data-field-id='SalePrice']/@data-field-value-id").getall()
-        # salesRange = [int(item) for item in salesRange]
-        # salesRange = sorted(set(list(salesRange)))
+        salesRange = response.xpath("//price[@data-field-id='SalePrice']/@data-field-value-id").getall()
+        salesRange = [int(item) for item in salesRange]
+        salesRange = sorted(set(list(salesRange)))
 
-        # print("\n\n\nColleting links for SALES\n\n\n")
+        print("\n\n\nColleting links for SALES\n\n\n")
 
-        # for i in range(0, len(salesRange)-1):
-        #     body = copy.deepcopy(self.update_query_sale)
-        #     body["query"]["FieldsValues"][3]["value"]=salesRange[i]
-        #     body["query"]["FieldsValues"][4]["value"]=salesRange[i+1]
+        for i in range(0, len(salesRange)-1):
+            body = copy.deepcopy(self.update_query_sale)
+            body["query"]["FieldsValues"][3]["value"]=salesRange[i]
+            body["query"]["FieldsValues"][4]["value"]=salesRange[i+1]
             
-        #     req = requests.post(
-        #         url = "https://www.centris.ca/property/UpdateQuery",
-        #         headers=self.headers,
-        #         json=body
-        #     )
+            req = requests.post(
+                url = "https://www.centris.ca/property/UpdateQuery",
+                headers=self.headers,
+                json=body
+            )
 
-        #     body = copy.deepcopy(self.update_query_sale)
-        #     body=body["query"]
-        #     body["FieldsValues"][3]["value"]=salesRange[i]
-        #     body["FieldsValues"][4]["value"]=salesRange[i+1]
+            body = copy.deepcopy(self.update_query_sale)
+            body=body["query"]
+            body["FieldsValues"][3]["value"]=salesRange[i]
+            body["FieldsValues"][4]["value"]=salesRange[i+1]
             
-        #     req2 = requests.post(
-        #         "https://www.centris.ca/property/GetPropertyCount",
-        #         headers = self.headers,
-        #         json=body
-        #     )
-        #     data = req2.json()
-        #     n = data["d"]["Result"]["listingCount"]
-        #     n = math.ceil(n/20)
+            req2 = requests.post(
+                "https://www.centris.ca/property/GetPropertyCount",
+                headers = self.headers,
+                json=body
+            )
+            data = req2.json()
+            n = data["d"]["Result"]["listingCount"]
+            n = math.ceil(n/20)
 
-        #     for j in range(0, n+1):
-        #         req3 = requests.post(
-        #             "https://www.centris.ca/Property/GetInscriptions?",
-        #             headers={
-        #                 "User-Agent": "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Mobile Safari/537.36"
-        #             },
-        #             json={"startPosition": j * 20},
-        #             cookies=req.cookies
-        #         )
-        #         try:
-        #             data = req3.json()
-        #             links = self.get_links(data['d']['Result']['html'])
-        #             for link in links:
-        #                 all_items_urls.append(link)
-        #         except Exception as e:
-        #                 print(f"An unexpected error occurred: {e}")
-        #                 log_error(e, self.name)
+            for j in range(0, n+1):
+                req3 = requests.post(
+                    "https://www.centris.ca/Property/GetInscriptions?",
+                    headers={
+                        "User-Agent": "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Mobile Safari/537.36"
+                    },
+                    json={"startPosition": j * 20},
+                    cookies=req.cookies
+                )
+                try:
+                    data = req3.json()
+                    links = self.get_links(data['d']['Result']['html'])
+                    for link in links:
+                        all_items_urls.append(link)
+                except Exception as e:
+                        print(f"An unexpected error occurred: {e}")
+                        log_error(e, self.name)
 
         all_items_urls = list(set(all_items_urls))
 
